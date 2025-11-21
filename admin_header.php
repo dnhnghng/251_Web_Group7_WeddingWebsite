@@ -30,9 +30,15 @@ require_once '../db_connect.php'; // $pdo sẽ có sẵn
             <ul>
                 <li><a href="quanly_sanpham.php">Quản lý Sản phẩm</a></li>
                 <li><a href="quanly_hopdong.php">Quản lý Hợp đồng</a></li>
+                
+                <li><a href="quanly_khachhang.php">Quản lý Khách hàng</a></li>
+                <li><a href="quanly_khuyenmai.php">Quản lý Khuyến mãi</a></li>
+
+                <li><a href="quanly_ncc.php">Quản lý Nhà cung cấp</a></li>
+                <li><a href="quanly_dvvc.php">Quản lý Đơn vị V/C</a></li>
+                <li><a href="quanly_lichtue.php">Quản lý Lịch thuê</a></li>
+                
                 </ul>
         </nav>
         
         <main class="admin-content">
-            ```
-
