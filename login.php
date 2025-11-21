@@ -1,89 +1,104 @@
 <?php
-// BẮT BUỘC phải gọi session_start() ở đầu file
+// --- KHỐI LẤY DỮ LIỆU / XỬ LÝ ---
 session_start();
+require_once 'db_connect.php';
 
-// 1. Kết nối CSDL
-require_once '../db_connect.php';
+$errors = [];
+$email = '';
 
-$error_message = '';
-
-// 2. Kiểm tra xem người dùng đã đăng nhập chưa?
-// Nếu đã đăng nhập, chuyển thẳng về trang quản lý
-if (isset($_SESSION['admin_id'])) {
-    header("Location: quanly_sanpham.php");
+if (isset($_SESSION['customer_id'])) {
+    header("Location: index.php");
     exit;
 }
 
-// 3. Xử lý khi form được gửi đi (POST)
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $ten_dang_nhap = trim($_POST['ten_dang_nhap']);
-    $mat_khau = trim($_POST['mat_khau']);
+    $email = trim($_POST['email']);
+    $password = $_POST['password'];
     
-    // 3.1. Kiểm tra dữ liệu
-    if (empty($ten_dang_nhap) || empty($mat_khau)) {
-        $error_message = "Vui lòng nhập cả Tên đăng nhập và Mật khẩu.";
+    if (empty($email) || empty($password)) {
+        $errors[] = "Vui lòng nhập Email và Mật khẩu.";
     } else {
         try {
-            // 3.2. Truy vấn CSDL
-            $sql = "SELECT * FROM NHANVIEN WHERE TenDangNhap = :ten_dang_nhap";
+            $sql = "SELECT * FROM KHACHHANG WHERE Email = :email";
             $stmt = $pdo->prepare($sql);
-            $stmt->execute(['ten_dang_nhap' => $ten_dang_nhap]);
-            $admin = $stmt->fetch();
+            $stmt->execute(['email' => $email]);
+            $customer = $stmt->fetch();
             
-            // 3.3. Xác thực
-            // password_verify() sẽ so sánh $mat_khau với chuỗi hash trong CSDL
-            if ($admin && password_verify($mat_khau, $admin['MatKhau'])) {
-                // Đăng nhập thành công!
+            if ($customer && password_verify($password, $customer['MatKhau'])) {
+                $_SESSION['customer_id'] = $customer['MaKhachHang'];
+                $_SESSION['customer_name'] = $customer['HoVaTen'];
                 
-                // 3.4. Lưu "vé vào cửa" (Session)
-                $_SESSION['admin_id'] = $admin['MaNhanVien'];
-                $_SESSION['admin_name'] = $admin['HoVaTen'];
-                
-                // 3.5. Chuyển hướng đến trang quản lý
-                header("Location: quanly_sanpham.php");
+                // (Nâng cấp) Chuyển hướng thông minh
+                $redirect_to = $_SESSION['redirect_to'] ?? 'index.php';
+                unset($_SESSION['redirect_to']); // Xóa link đã lưu
+                header("Location: $redirect_to");
                 exit;
-                
             } else {
-                // Đăng nhập thất bại
-                $error_message = "Tên đăng nhập hoặc mật khẩu không chính xác.";
+                $errors[] = "Email hoặc mật khẩu không chính xác.";
             }
-
-        } catch (\PDOException $e) {
-            $error_message = "Lỗi CSDL: " . $e->getMessage();
-        }
+        } catch (\PDOException $e) { $errors[] = "Lỗi CSDL: " . $e->getMessage(); }
     }
 }
+
+// --- KHỐI ĐỊNH NGHĨA BIẾN CHO HEADER ---
+$page_title = "Đăng nhập";
+
+// CSS riêng (Dùng chung với register.php)
+$page_specific_css = '
+    <style>
+        .form-container { max-width: 600px; margin: 50px auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .form-container h1 { text-align: center; border-bottom: none; margin-bottom: 20px; }
+        .crud-form { margin: 0; padding: 0; background: none; border: none; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; }
+        .form-group input[type="text"], .form-group input[type="email"], .form-group input[type="password"] {
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
+        }
+        .form-actions { margin-top: 20px; }
+        .btn-add { width: 100%; padding: 12px; }
+        .form-errors {
+            background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;
+            padding: 10px 20px; border-radius: 4px; margin-bottom: 20px;
+        }
+        .form-errors p { margin: 5px 0; }
+        .login-link { text-align: center; margin-top: 20px; }
+    </style>
+';
+
+// --- GỌI HEADER ---
+require_once 'header.php';
 ?>
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale-1.0">
-    <title>Đăng nhập Quản trị</title>
-    <link rel="stylesheet" href="style.css"> </head>
-<body>
-    <div class="login-container">
-        <h1>Đăng nhập Trang Quản Trị</h1>
 
-        <?php if (!empty($error_message)): ?>
-            <div class="form-errors">
-                <p><?php echo htmlspecialchars($error_message); ?></p>
-            </div>
-        <?php endif; ?>
+<div class="form-container">
+    <h1>Đăng nhập tài khoản</h1>
+    
+    <?php if (!empty($errors)): ?>
+        <div class="form-errors">
+            <?php foreach ($errors as $error): ?>
+                <p><?php echo htmlspecialchars($error); ?></p>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+    
+    <form action="login.php" method="POST" class="crud-form">
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($email); ?>" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Mật khẩu</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-add">Đăng nhập</button>
+        </div>
+        <div class="login-link">
+            <p>Chưa có tài khoản? <a href="register.php">Đăng ký ngay</a></p>
+        </div>
+    </form>
+</div>
 
-        <form action="login.php" method="POST" class="crud-form">
-            <div class="form-group">
-                <label for="ten_dang_nhap">Tên đăng nhập</label>
-                <input type="text" id="ten_dang_nhap" name="ten_dang_nhap" required>
-            </div>
-            <div class="form-group">
-                <label for="mat_khau">Mật khẩu</label>
-                <input type="password" id="mat_khau" name="mat_khau" required>
-            </div>
-            <div class="form-actions">
-                <button type="submit" class="btn-add">Đăng nhập</button>
-            </div>
-        </form>
-    </div>
-</body>
-</html>
+<?php 
+// --- GỌI FOOTER ---
+require_once 'footer.php'; 
+?>
